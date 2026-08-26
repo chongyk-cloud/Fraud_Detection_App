@@ -135,8 +135,96 @@ with tab1:
 # ==========================================
 # MODULE 2 & 3: PLACEHOLDERS
 # ==========================================
+# ==========================================
+# MODULE 2: BATCH AUCTION AUDIT (TAB 2)
+# ==========================================
 with tab2:
-    st.write("Batch Auction Audit content will be built here next.")
+    st.subheader("📁 Batch Auction Audit")
+    st.markdown("Run automated security scans across bulk auction logs to identify widespread fraudulent patterns.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        data_source = st.radio("Select Data Source:", ["Use Default Dataset (Shill Bidding Dataset.csv)", "Upload New CSV"])
+    with col2:
+        # Give this a unique key so it doesn't conflict with Tab 1's selector
+        batch_model_name = st.selectbox("Select Model for Batch Scan:", list(MODEL_PATHS.keys()), key="batch_model")
 
+    uploaded_file = None
+    if data_source == "Upload New CSV":
+        uploaded_file = st.file_uploader("Upload Auction Data (CSV)", type=["csv"])
+
+    if st.button("Run Batch Audit", type="primary", use_container_width=True):
+        # 1. Load Data
+        df = None
+        try:
+            if data_source == "Use Default Dataset (Shill Bidding Dataset.csv)":
+                df = pd.read_csv("Shill Bidding Dataset.csv")
+            else:
+                if uploaded_file is not None:
+                    df = pd.read_csv(uploaded_file)
+                else:
+                    st.warning("Please upload a CSV file first.")
+        except Exception as e:
+            st.error(f"Error loading data: {e}")
+
+        # 2. Process Data if Loaded Successfully
+        if df is not None:
+            feature_cols = [
+                "Bidder_Tendency", "Bidding_Ratio", "Successive_Outbidding",
+                "Last_Bidding", "Auction_Bids", "Starting_Price_Average", 
+                "Early_Bidding", "Winning_Ratio", "Auction_Duration"
+            ]
+            
+            # Check if CSV has the correct columns
+            missing_cols = [col for col in feature_cols if col not in df.columns]
+            if missing_cols:
+                st.error(f"🚨 Missing required columns in dataset: {missing_cols}")
+            else:
+                with st.spinner(f"Scanning {len(df)} records using {batch_model_name}..."):
+                    # Load Model & Predict
+                    batch_model = joblib.load(MODEL_PATHS[batch_model_name])
+                    X_batch = df[feature_cols]
+                    predictions = batch_model.predict(X_batch)
+                    
+                    # Append results to the dataframe
+                    results_df = df.copy()
+                    results_df["Fraud_Prediction"] = predictions
+                    results_df["Risk_Status"] = results_df["Fraud_Prediction"].apply(lambda x: "🚨 Shill" if x == 1 else "✅ Clean")
+                    
+                    # Calculate Metrics
+                    total_bids = len(results_df)
+                    flagged_shills = int(sum(predictions))
+                    clean_bids = total_bids - flagged_shills
+                    clean_rate = (clean_bids / total_bids) * 100 if total_bids > 0 else 0
+                    
+                    # Display Metrics
+                    st.divider()
+                    st.markdown("### 📊 Audit Summary")
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("Total Bids Scanned", f"{total_bids:,}")
+                    m2.metric("🚨 Flagged Shills", f"{flagged_shills:,}")
+                    m3.metric("✅ Clean Bids Rate", f"{clean_rate:.2f}%")
+                    
+                    # Display Data Table (Highlighting Fraud Rows)
+                    st.markdown("### 📋 Detailed Audit Log")
+                    
+                    def highlight_fraud(row):
+                        if row['Fraud_Prediction'] == 1:
+                            return ['background-color: rgba(255, 75, 75, 0.2)'] * len(row)
+                        return [''] * len(row)
+                    
+                    st.dataframe(results_df.style.apply(highlight_fraud, axis=1), use_container_width=True)
+                    
+                    # Download Button for Flagged Data
+                    flagged_df = results_df[results_df["Fraud_Prediction"] == 1]
+                    if not flagged_df.empty:
+                        csv_export = flagged_df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="📥 Download Flagged Accounts Report (CSV)",
+                            data=csv_export,
+                            file_name="flagged_shill_bidders.csv",
+                            mime="text/csv",
+                            type="primary"
+                        )
 with tab3:
     st.write("Model Hub content will be built here.")
