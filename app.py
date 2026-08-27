@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import __main__
+import plotly.express as px  # <-- ADD THIS LINE
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
