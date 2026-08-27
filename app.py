@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import __main__
-import plotly.express as px  # <-- ADD THIS LINE
+import plotly.express as px
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
@@ -35,7 +35,6 @@ class BoxplotWinsorizer(BaseEstimator, TransformerMixin):
 __main__.BoxplotWinsorizer = BoxplotWinsorizer
 
 # --- 2. MODEL PATHS (LAZY LOADING) ---
-# We ONLY store the file names here. We don't load them into memory yet!
 MODEL_PATHS = {
     "Logistic Regression (Baseline)": 'logistic_regression_model.pkl',
     "Random Forest Classifier": 'random_forest_model.pkl',
@@ -45,20 +44,19 @@ MODEL_PATHS = {
 # --- 3. PAGE SETUP ---
 st.set_page_config(
     page_title="Auction Shield | Fraud Detection",
-    page_icon="🛡️",
     layout="wide"
 )
 
 # --- 4. HEADER & TITLE ---
-st.title("🛡️ Auction Shield: Shill Bidding Detection System")
+st.title("Auction Shield: Shill Bidding Detection System")
 st.markdown("Real-time financial security and risk analytics portal for online auction integrity.")
 st.divider()
 
 # --- 5. TABS NAVIGATION ---
 tab1, tab2, tab3 = st.tabs([
-    "🔍 Live Bidder Inspection",
-    "📁 Batch Auction Audit",
-    "📊 Model Hub"
+    "Live Bidder Inspection",
+    "Batch Auction Audit",
+    "Model Hub"
 ])
 
 # ==========================================
@@ -73,7 +71,7 @@ with tab1:
     
     st.divider()
     
-    # Input Sliders (Organized in 3 columns for a clean UI)
+    # Input Sliders
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -93,12 +91,9 @@ with tab1:
 
     # Predict Button
     if st.button("Analyze Bidder Risk", type="primary", use_container_width=True):
-        
-        # LAZY LOAD THE MODEL HERE: It only loads the one you picked, saving RAM!
         with st.spinner(f"Loading {selected_model_name} and analyzing..."):
             active_model = joblib.load(MODEL_PATHS[selected_model_name])
             
-            # Package inputs into a DataFrame matching the EXACT training data order
             input_data = pd.DataFrame([[
                 bidder_tendency, 
                 bidding_ratio, 
@@ -121,34 +116,28 @@ with tab1:
                 "Auction_Duration"
             ])
             
-            # Make Prediction
             prediction = active_model.predict(input_data)[0]
             probability = active_model.predict_proba(input_data)[0][1]
         
-        # Display Results
         st.divider()
         if prediction == 1:
-            st.error(f"🚨 **FRAUDULENT BIDDER DETECTED (SHILL)**")
+            st.error(f"**FRAUDULENT BIDDER DETECTED (SHILL)**")
             st.warning(f"**Risk Confidence Score:** {probability * 100:.2f}% probability of shill activity.")
         else:
-            st.success(f"✅ **LEGITIMATE BIDDER (NORMAL)**")
+            st.success(f"**LEGITIMATE BIDDER (NORMAL)**")
             st.info(f"**Risk Confidence Score:** {probability * 100:.2f}% probability of shill activity.")
 
-# ==========================================
-# MODULE 2 & 3: PLACEHOLDERS
-# ==========================================
 # ==========================================
 # MODULE 2: BATCH AUCTION AUDIT (TAB 2)
 # ==========================================
 with tab2:
-    st.subheader("📁 Batch Auction Audit")
+    st.subheader("Batch Auction Audit")
     st.markdown("Run automated security scans across bulk auction logs to identify widespread fraudulent patterns.")
     
     col1, col2 = st.columns(2)
     with col1:
         data_source = st.radio("Select Data Source:", ["Use Default Dataset (Shill Bidding Dataset.csv)", "Upload New CSV"])
     with col2:
-        # Give this a unique key so it doesn't conflict with Tab 1's selector
         batch_model_name = st.selectbox("Select Model for Batch Scan:", list(MODEL_PATHS.keys()), key="batch_model")
 
     uploaded_file = None
@@ -156,7 +145,6 @@ with tab2:
         uploaded_file = st.file_uploader("Upload Auction Data (CSV)", type=["csv"])
 
     if st.button("Run Batch Audit", type="primary", use_container_width=True):
-        # 1. Load Data
         df = None
         try:
             if data_source == "Use Default Dataset (Shill Bidding Dataset.csv)":
@@ -169,7 +157,6 @@ with tab2:
         except Exception as e:
             st.error(f"Error loading data: {e}")
 
-        # 2. Process Data if Loaded Successfully
         if df is not None:
             feature_cols = [
                 "Bidder_Tendency", "Bidding_Ratio", "Successive_Outbidding",
@@ -177,38 +164,32 @@ with tab2:
                 "Early_Bidding", "Winning_Ratio", "Auction_Duration"
             ]
             
-            # Check if CSV has the correct columns
             missing_cols = [col for col in feature_cols if col not in df.columns]
             if missing_cols:
-                st.error(f"🚨 Missing required columns in dataset: {missing_cols}")
+                st.error(f"Missing required columns in dataset: {missing_cols}")
             else:
                 with st.spinner(f"Scanning {len(df)} records using {batch_model_name}..."):
-                    # Load Model & Predict
                     batch_model = joblib.load(MODEL_PATHS[batch_model_name])
                     X_batch = df[feature_cols]
                     predictions = batch_model.predict(X_batch)
                     
-                    # Append results to the dataframe
                     results_df = df.copy()
                     results_df["Fraud_Prediction"] = predictions
-                    results_df["Risk_Status"] = results_df["Fraud_Prediction"].apply(lambda x: "🚨 Shill" if x == 1 else "✅ Clean")
+                    results_df["Risk_Status"] = results_df["Fraud_Prediction"].apply(lambda x: "Shill" if x == 1 else "Clean")
                     
-                    # Calculate Metrics
                     total_bids = len(results_df)
                     flagged_shills = int(sum(predictions))
                     clean_bids = total_bids - flagged_shills
                     clean_rate = (clean_bids / total_bids) * 100 if total_bids > 0 else 0
                     
-                    # Display Metrics
                     st.divider()
-                    st.markdown("### 📊 Audit Summary")
+                    st.markdown("### Audit Summary")
                     m1, m2, m3 = st.columns(3)
                     m1.metric("Total Bids Scanned", f"{total_bids:,}")
-                    m2.metric("🚨 Flagged Shills", f"{flagged_shills:,}")
-                    m3.metric("✅ Clean Bids Rate", f"{clean_rate:.2f}%")
+                    m2.metric("Flagged Shills", f"{flagged_shills:,}")
+                    m3.metric("Clean Bids Rate", f"{clean_rate:.2f}%")
                     
-                    # Display Data Table (Highlighting Fraud Rows)
-                    st.markdown("### 📋 Detailed Audit Log")
+                    st.markdown("### Detailed Audit Log")
                     
                     def highlight_fraud(row):
                         if row['Fraud_Prediction'] == 1:
@@ -217,30 +198,39 @@ with tab2:
                     
                     st.dataframe(results_df.style.apply(highlight_fraud, axis=1), use_container_width=True)
 
-                   
+                    st.markdown("### Interactive Risk Topography")
+                    fig = px.scatter(
+                        results_df,
+                        x="Bidding_Ratio",
+                        y="Successive_Outbidding",
+                        color="Risk_Status",
+                        color_discrete_map={"Shill": "#ff4b4b", "Clean": "#21c354"},
+                        title="Bidder Behavior Clustering",
+                        hover_data=["Bidder_Tendency", "Auction_Bids", "Fraud_Prediction"]
+                    )
                     
-                  
+                    fig.update_layout(xaxis_title="Bidding Ratio", yaxis_title="Successive Outbidding")
+                    st.plotly_chart(fig, use_container_width=True)
                     
-                    # Download Button for Flagged Data
                     flagged_df = results_df[results_df["Fraud_Prediction"] == 1]
                     if not flagged_df.empty:
                         csv_export = flagged_df.to_csv(index=False).encode('utf-8')
                         st.download_button(
-                            label="📥 Download Flagged Accounts Report (CSV)",
+                            label="Download Flagged Accounts Report (CSV)",
                             data=csv_export,
                             file_name="flagged_shill_bidders.csv",
                             mime="text/csv",
                             type="primary"
                         )
+
 # ==========================================
 # MODULE 3: MODEL PERFORMANCE HUB (TAB 3)
 # ==========================================
 with tab3:
-    st.subheader("📊 Model Performance & Evaluation Hub")
+    st.subheader("Model Performance & Evaluation Hub")
     st.markdown("This dashboard evaluates the three machine learning algorithms live against the uploaded dataset.")
     
     try:
-        # Load the dataset for evaluation
         df_eval = pd.read_csv("Shill Bidding Dataset.csv")
         
         feature_cols = [
@@ -249,31 +239,24 @@ with tab3:
             "Early_Bidding", "Winning_Ratio", "Auction_Duration"
         ]
         
-        # Prepare X (features) and y (target)
         X_eval = df_eval[feature_cols]
-        # Note: 'Class' is the standard target column name for this dataset. 
-        # If your dataset uses a different name (like 'Fraud' or 'Target'), change it here!
         y_eval = df_eval["Class"] 
         
         metrics_list = []
         
         with st.spinner("Calculating live performance metrics..."):
             for model_name, path in MODEL_PATHS.items():
-                # Load each model one by one
                 eval_model = joblib.load(path)
                 
-                # Generate predictions
                 y_pred = eval_model.predict(X_eval)
                 y_prob = eval_model.predict_proba(X_eval)[:, 1]
                 
-                # Calculate metrics
                 acc = accuracy_score(y_eval, y_pred)
                 prec = precision_score(y_eval, y_pred)
                 rec = recall_score(y_eval, y_pred)
                 f1 = f1_score(y_eval, y_pred)
                 roc = roc_auc_score(y_eval, y_prob)
                 
-                # Append to list
                 metrics_list.append({
                     "Algorithm": model_name,
                     "Accuracy": f"{acc * 100:.2f}%",
@@ -283,25 +266,23 @@ with tab3:
                     "ROC-AUC": f"{roc:.3f}"
                 })
         
-        # Create and display the DataFrame
         metrics_df = pd.DataFrame(metrics_list)
-        st.markdown("### 🏆 Live Comparative Metric Scoreboard")
+        st.markdown("### Live Comparative Metric Scoreboard")
         st.dataframe(metrics_df, use_container_width=True, hide_index=True)
 
         st.divider()
         
-        # Analytical Insights
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("### 🧠 Model Architecture Justification")
+            st.markdown("### Model Architecture Justification")
             st.info("""
             **Random Forest** and **Hist Gradient Boosting** significantly outperform the baseline Logistic Regression model. 
             Because the original dataset was highly imbalanced, combining these tree-based ensemble methods with **SMOTE** (Synthetic Minority Over-sampling Technique) allowed the algorithms to successfully learn the complex, non-linear behavioral patterns of shill bidders.
             """)
             
         with col2:
-            st.markdown("### 🎯 Real-World Business Impact")
+            st.markdown("### Real-World Business Impact")
             st.success("""
             In financial security and fraud detection, **Recall** is the most critical metric. Missing a fraudulent bidder (False Negative) severely damages platform trust, which is far more dangerous than occasionally flagging a normal bidder for manual review (False Positive). 
             
