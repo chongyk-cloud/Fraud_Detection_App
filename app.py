@@ -4,6 +4,7 @@ import numpy as np
 import joblib
 import __main__
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
 # --- 1. REQUIRED CLASS DEFINITION ---
 class BoxplotWinsorizer(BaseEstimator, TransformerMixin):
@@ -231,46 +232,77 @@ with tab2:
 # ==========================================
 with tab3:
     st.subheader("📊 Model Performance & Evaluation Hub")
-    st.markdown("This dashboard provides a comparative analysis of the three machine learning algorithms trained for this system.")
+    st.markdown("This dashboard evaluates the three machine learning algorithms live against the uploaded dataset.")
     
-    # Performance Metrics Table
-    st.markdown("### 🏆 Comparative Metric Scoreboard")
-    
-    # Note: You can update these percentages to match your exact Jupyter Notebook results!
-    metrics_data = {
-        "Algorithm": [
-            "Logistic Regression (Baseline)", 
-            "Random Forest (Advanced)", 
-            "Hist Gradient Boosting (Advanced)"
-        ],
-        "Accuracy": ["92.50%", "98.20%", "98.50%"],
-        "Precision (Fraud)": ["88.10%", "97.50%", "97.80%"],
-        "Recall (Fraud)": ["85.40%", "98.00%", "98.30%"],
-        "F1-Score": ["86.70%", "97.70%", "98.00%"],
-        "ROC-AUC": ["0.910", "0.995", "0.998"]
-    }
-    
-    metrics_df = pd.DataFrame(metrics_data)
-    
-    # Display the dataframe cleanly without the index numbers on the left
-    st.dataframe(metrics_df, use_container_width=True, hide_index=True)
-    
-    st.divider()
-    
-    # Analytical Insights
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### 🧠 Model Architecture Justification")
-        st.info("""
-        **Random Forest** and **Hist Gradient Boosting** significantly outperform the baseline Logistic Regression model. 
-        Because the original dataset was highly imbalanced, combining these tree-based ensemble methods with **SMOTE** (Synthetic Minority Over-sampling Technique) allowed the algorithms to successfully learn the complex, non-linear behavioral patterns of shill bidders without overfitting.
-        """)
+    try:
+        # Load the dataset for evaluation
+        df_eval = pd.read_csv("Shill Bidding Dataset.csv")
         
-    with col2:
-        st.markdown("### 🎯 Real-World Business Impact")
-        st.success("""
-        In financial security and fraud detection, **Recall** is the most critical metric. Missing a fraudulent bidder (False Negative) severely damages platform trust, which is far more dangerous than occasionally flagging a normal bidder for manual review (False Positive). 
+        feature_cols = [
+            "Bidder_Tendency", "Bidding_Ratio", "Successive_Outbidding",
+            "Last_Bidding", "Auction_Bids", "Starting_Price_Average", 
+            "Early_Bidding", "Winning_Ratio", "Auction_Duration"
+        ]
         
-        The **Hist Gradient Boosting** classifier provides the highest recall score, making it the premier choice for protecting auction integrity.
-        """)
+        # Prepare X (features) and y (target)
+        X_eval = df_eval[feature_cols]
+        # Note: 'Class' is the standard target column name for this dataset. 
+        # If your dataset uses a different name (like 'Fraud' or 'Target'), change it here!
+        y_eval = df_eval["Class"] 
+        
+        metrics_list = []
+        
+        with st.spinner("Calculating live performance metrics..."):
+            for model_name, path in MODEL_PATHS.items():
+                # Load each model one by one
+                eval_model = joblib.load(path)
+                
+                # Generate predictions
+                y_pred = eval_model.predict(X_eval)
+                y_prob = eval_model.predict_proba(X_eval)[:, 1]
+                
+                # Calculate metrics
+                acc = accuracy_score(y_eval, y_pred)
+                prec = precision_score(y_eval, y_pred)
+                rec = recall_score(y_eval, y_pred)
+                f1 = f1_score(y_eval, y_pred)
+                roc = roc_auc_score(y_eval, y_prob)
+                
+                # Append to list
+                metrics_list.append({
+                    "Algorithm": model_name,
+                    "Accuracy": f"{acc * 100:.2f}%",
+                    "Precision (Fraud)": f"{prec * 100:.2f}%",
+                    "Recall (Fraud)": f"{rec * 100:.2f}%",
+                    "F1-Score": f"{f1 * 100:.2f}%",
+                    "ROC-AUC": f"{roc:.3f}"
+                })
+        
+        # Create and display the DataFrame
+        metrics_df = pd.DataFrame(metrics_list)
+        st.markdown("### 🏆 Live Comparative Metric Scoreboard")
+        st.dataframe(metrics_df, use_container_width=True, hide_index=True)
+
+        st.divider()
+        
+        # Analytical Insights
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 🧠 Model Architecture Justification")
+            st.info("""
+            **Random Forest** and **Hist Gradient Boosting** significantly outperform the baseline Logistic Regression model. 
+            Because the original dataset was highly imbalanced, combining these tree-based ensemble methods with **SMOTE** (Synthetic Minority Over-sampling Technique) allowed the algorithms to successfully learn the complex, non-linear behavioral patterns of shill bidders.
+            """)
+            
+        with col2:
+            st.markdown("### 🎯 Real-World Business Impact")
+            st.success("""
+            In financial security and fraud detection, **Recall** is the most critical metric. Missing a fraudulent bidder (False Negative) severely damages platform trust, which is far more dangerous than occasionally flagging a normal bidder for manual review (False Positive). 
+            
+            The model with the highest recall score is the recommended choice for protecting auction integrity.
+            """)
+
+    except Exception as e:
+        st.error(f"Could not calculate live metrics. Error: {e}")
+        st.info("Make sure 'Shill Bidding Dataset.csv' is in your repository and that the target variable column is named exactly 'Class'.")
