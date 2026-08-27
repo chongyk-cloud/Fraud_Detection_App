@@ -215,6 +215,22 @@ with tab2:
                         return [''] * len(row)
                     
                     st.dataframe(results_df.style.apply(highlight_fraud, axis=1), use_container_width=True)
+
+                    st.markdown("### 🗺️ Interactive Risk Topography")
+                    # Create an interactive scatter plot
+                    fig = px.scatter(
+                        results_df,
+                        x="Bidding_Ratio",
+                        y="Successive_Outbidding",
+                        color="Risk_Status",
+                        color_discrete_map={"🚨 Shill": "#ff4b4b", "✅ Clean": "#21c354"},
+                        title="Bidder Behavior Clustering",
+                        hover_data=["Bidder_Tendency", "Auction_Bids", "Fraud_Prediction"]
+                    )
+                    
+                    # Update layout for a sleek, dark-mode friendly look
+                    fig.update_layout(xaxis_title="Bidding Ratio", yaxis_title="Successive Outbidding")
+                    st.plotly_chart(fig, use_container_width=True)
                     
                     # Download Button for Flagged Data
                     flagged_df = results_df[results_df["Fraud_Prediction"] == 1]
