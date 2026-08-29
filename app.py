@@ -53,10 +53,11 @@ st.markdown("Real-time financial security and risk analytics portal for online a
 st.divider()
 
 # --- 5. TABS NAVIGATION ---
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "Live Bidder Inspection",
     "Batch Auction Audit",
-    "Model Hub"
+    "Model Hub",
+    "Exploratory Data Analysis"
 ])
 
 # ==========================================
@@ -292,3 +293,39 @@ with tab3:
     except Exception as e:
         st.error(f"Could not calculate live metrics. Error: {e}")
         st.info("Make sure 'Shill Bidding Dataset.csv' is in your repository and that the target variable column is named exactly 'Class'.")
+# ==========================================
+# MODULE 4: EXPLORATORY DATA ANALYSIS (TAB 4)
+# ==========================================
+with tab4:
+    st.subheader("Exploratory Data Analysis")
+    st.markdown("Investigate the underlying behavioral patterns that distinguish legitimate buyers from shill bidders.")
+    
+    # Top Row: Two side-by-side analyses
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Analysis 1: [Title]**")
+        st.info("Placeholder: Interactive Plotly Chart 1 will render here.")
+        
+    with col2:
+        st.markdown("**Analysis 2: [Title]**")
+        st.info("Placeholder: Interactive Plotly Chart 2 will render here.")
+        
+    st.divider()
+    
+    # Middle Row: Full-width or complex analysis
+    st.markdown("**Analysis 3: [Title]**")
+    st.info("Placeholder: Interactive Plotly Chart 3 will render here.")
+    
+    st.divider()
+    
+    # Bottom Row: Two side-by-side analyses
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        st.markdown("**Analysis 4: [Title]**")
+        st.info("Placeholder: Interactive Plotly Chart 4 will render here.")
+        
+    with col4:
+        st.markdown("**Analysis 5: [Title]**")
+        st.info("Placeholder: Interactive Plotly Chart 5 will render here.")
