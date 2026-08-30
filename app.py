@@ -236,7 +236,7 @@ with tab2:
                             pie_batch = results_df['Risk_Status'].value_counts().reset_index()
                             pie_batch.columns = ['Risk_Status', 'Count']
                             fig_batch_pie = px.pie(
-                                pie_batch, values='Count', names='Risk_Status', hole=0.5,
+                                pie_batch, values='Count', names='Risk_Status',
                                 color='Risk_Status', color_discrete_map=theme_colors,
                                 title="Proportion of Flagged vs Clean Bids in Batch"
                             )
@@ -363,10 +363,11 @@ with tab4:
                 pie_data = df_eda['Class_Label'].value_counts().reset_index()
                 pie_data.columns = ['Class_Label', 'Count']
                 fig_pie = px.pie(
-                    pie_data, values='Count', names='Class_Label', hole=0.4,
-                    color='Class_Label', color_discrete_map=color_map
+                    pie_data, values='Count', names='Class_Label',
+                    color='Class_Label', color_discrete_map=color_map,
+                    title="Class Distribution (Shill vs Non-Shill)"
                 )
-                fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+                fig_pie.update_layout(margin=dict(t=30, b=0, l=0, r=0))
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
             with col2:
@@ -442,6 +443,7 @@ with tab4:
                     "Select Feature to View Distribution:", 
                     ['Bidder_Tendency', 'Bidding_Ratio', 'Winning_Ratio', 'Last_Bidding', 'Auction_Bids', 'Starting_Price_Average', 'Early_Bidding']
                 )
+                st.markdown("**Outlier Detection (Interactive Box Plot)**")
                 fig_box = px.box(
                     df_eda, x='Class_Label', y=selected_box_feature, color='Class_Label', 
                     color_discrete_map=color_map
@@ -451,6 +453,7 @@ with tab4:
                 
             with col8:
                 st.markdown("<br><br>", unsafe_allow_html=True)
+                st.markdown("**Feature Effect (ROC-AUC)**")
                 features_to_test = ['Starting_Price_Average', 'Auction_Bids', 'Early_Bidding', 'Last_Bidding', 'Bidder_Tendency', 'Winning_Ratio', 'Bidding_Ratio']
                 live_auc_scores = [roc_auc_score(df_eda['Class'], df_eda[col]) for col in features_to_test]
                 
