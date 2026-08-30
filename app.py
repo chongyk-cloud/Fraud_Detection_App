@@ -114,13 +114,21 @@ with tab1:
                 probability = active_model.predict_proba(input_data)[0][1]
             
                 st.divider()
+                st.markdown("### Risk Analysis Results")
                 
-                if prediction == 1:
-                    st.error("**FRAUDULENT BIDDER DETECTED (SHILL)**")
-                    st.warning(f"**Risk Confidence Score:** {probability * 100:.2f}% probability of shill activity.")
-                else:
-                    st.success("**LEGITIMATE BIDDER (NORMAL)**")
-                    st.info(f"**Risk Confidence Score:** {probability * 100:.2f}% probability of shill activity.")
+                res_col1, res_col2 = st.columns([1, 1])
+                
+                with res_col1:
+                    if prediction == 1:
+                        st.error("#### 🚨 Fraudulent Bidder (Shill)")
+                        st.write("This behavioral profile matches malicious price manipulation patterns.")
+                    else:
+                        st.success("#### ✅ Legitimate Bidder (Normal)")
+                        st.write("This behavioral profile is consistent with normal consumer activity.")
+                        
+                with res_col2:
+                    st.metric(label="Risk Confidence Score", value=f"{probability * 100:.2f}%")
+                    st.progress(float(probability), text="Probability of Shill Activity")
                     
             except Exception as e:
                 st.error(f"Error loading model or predicting: {e}")
@@ -207,7 +215,7 @@ with tab2:
                             pie_batch = results_df['Risk_Status'].value_counts().reset_index()
                             pie_batch.columns = ['Risk_Status', 'Count']
                             fig_batch_pie = px.pie(
-                                pie_batch, values='Count', names='Risk_Status',
+                                pie_batch, values='Count', names='Risk_Status', hole=0.5,
                                 color='Risk_Status', color_discrete_map={"Shill": "#ff4b4b", "Clean": "#21c354"},
                                 title="Proportion of Flagged vs Clean Bids in Batch"
                             )
@@ -302,15 +310,6 @@ with tab3:
             fig_models.update_layout(height=350, margin=dict(t=20, b=0, l=0, r=0), yaxis_range=[80, 105])
             st.plotly_chart(fig_models, use_container_width=True)
 
-        st.divider()
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Model Architecture Justification**")
-            st.info("Random Forest and Hist Gradient Boosting significantly outperform the baseline Logistic Regression model. Because the original dataset was highly imbalanced, combining these tree-based ensemble methods with SMOTE allowed the algorithms to successfully learn the complex, non-linear behavioral patterns of shill bidders.")
-        with col2:
-            st.markdown("**Real-World Business Impact**")
-            st.success("In financial security and fraud detection, Recall is the most critical metric. Missing a fraudulent bidder (False Negative) severely damages platform trust, which is far more dangerous than occasionally flagging a normal bidder for manual review (False Positive). The model with the highest recall score is the recommended choice.")
-
     except Exception as e:
         st.error(f"Could not calculate live metrics. Error: {e}")
 
@@ -335,11 +334,10 @@ with tab4:
                 pie_data = df_eda['Class_Label'].value_counts().reset_index()
                 pie_data.columns = ['Class_Label', 'Count']
                 fig_pie = px.pie(
-                    pie_data, values='Count', names='Class_Label',
-                    color='Class_Label', color_discrete_map=color_map,
-                    title="Class Distribution (Shill vs Non-Shill)"
+                    pie_data, values='Count', names='Class_Label', hole=0.4,
+                    color='Class_Label', color_discrete_map=color_map
                 )
-                fig_pie.update_layout(margin=dict(t=30, b=0, l=0, r=0))
+                fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
             with col2:
@@ -403,23 +401,37 @@ with tab4:
                 st.plotly_chart(fig_line, use_container_width=True)
                 st.caption("Bidding frequency is a dynamic risk factor. This curve provides platform admins with an exact mathematical threshold to trigger automated account suspensions.")
 
-        # --- SECTION 4: Predictive Power Ranking ---
+        # --- SECTION 4: Predictive Power & Outlier Detection ---
         with st.container(border=True):
-            st.markdown("### 4. Predictive Power (ROC-AUC Feature Ranking)")
-            st.markdown("To prevent overfitting, we calculate the Area Under the Receiver Operating Characteristic Curve (ROC-AUC) for individual features. This proves mathematically which behaviors separate the classes best.")
+            st.markdown("### 4. Predictive Power & Feature Distribution")
+            col7, col8 = st.columns(2)
             
-            features_to_test = ['Starting_Price_Average', 'Auction_Bids', 'Early_Bidding', 'Last_Bidding', 'Bidder_Tendency', 'Winning_Ratio', 'Bidding_Ratio']
-            live_auc_scores = [roc_auc_score(df_eda['Class'], df_eda[col]) for col in features_to_test]
-            
-            auc_data = pd.DataFrame({'Feature': features_to_test, 'ROC_AUC': live_auc_scores}).sort_values('ROC_AUC')
-            
-            fig_auc = px.bar(
-                auc_data, x='ROC_AUC', y='Feature', orientation='h', 
-                color='ROC_AUC', color_continuous_scale='Reds'
-            )
-            fig_auc.add_vline(x=0.5, line_dash="dash", line_color="black", annotation_text="Baseline (0.5 = No Effect)")
-            fig_auc.update_layout(height=300, margin=dict(t=10, b=0, l=0, r=0), coloraxis_showscale=False)
-            st.plotly_chart(fig_auc, use_container_width=True)
+            with col7:
+                st.markdown("**Outlier Detection (Interactive Box Plot)**")
+                selected_box_feature = st.selectbox(
+                    "Select Feature to View Distribution:", 
+                    ['Bidder_Tendency', 'Bidding_Ratio', 'Winning_Ratio', 'Last_Bidding', 'Auction_Bids', 'Starting_Price_Average', 'Early_Bidding']
+                )
+                fig_box = px.box(
+                    df_eda, x='Class_Label', y=selected_box_feature, color='Class_Label', 
+                    color_discrete_map=color_map
+                )
+                fig_box.update_layout(margin=dict(t=30, b=0, l=0, r=0))
+                st.plotly_chart(fig_box, use_container_width=True)
+                
+            with col8:
+                st.markdown("**Feature Effect (ROC-AUC)**")
+                features_to_test = ['Starting_Price_Average', 'Auction_Bids', 'Early_Bidding', 'Last_Bidding', 'Bidder_Tendency', 'Winning_Ratio', 'Bidding_Ratio']
+                live_auc_scores = [roc_auc_score(df_eda['Class'], df_eda[col]) for col in features_to_test]
+                
+                auc_data = pd.DataFrame({'Feature': features_to_test, 'ROC_AUC': live_auc_scores}).sort_values('ROC_AUC')
+                fig_auc = px.bar(
+                    auc_data, x='ROC_AUC', y='Feature', orientation='h', 
+                    color='ROC_AUC', color_continuous_scale='Reds'
+                )
+                fig_auc.add_vline(x=0.5, line_dash="dash", line_color="black", annotation_text="Baseline (0.5 = No Effect)")
+                fig_auc.update_layout(height=350, margin=dict(t=10, b=0, l=0, r=0), coloraxis_showscale=False)
+                st.plotly_chart(fig_auc, use_container_width=True)
 
     except Exception as e:
         st.error(f"Could not load dataset for analysis. Error: {e}")
