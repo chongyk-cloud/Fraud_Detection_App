@@ -6,6 +6,7 @@ import __main__
 import plotly.express as px
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+import plotly.graph_objects as go
 
 # --- 1. REQUIRED CLASS DEFINITION ---
 class BoxplotWinsorizer(BaseEstimator, TransformerMixin):
