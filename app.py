@@ -60,14 +60,14 @@ st.divider()
 
 # --- 6. TABS NAVIGATION ---
 tab1, tab2, tab3, tab4 = st.tabs([
-    "Live Bidder Inspection",
+    "Shill Predictor",
     "Batch Auction Audit",
     "Model Hub",
     "Exploratory Data Analysis"
 ])
 
 # ==========================================
-# MODULE 1: LIVE BIDDER INSPECTION (TAB 1)
+# MODULE 1: SHILL PREDICTOR (TAB 1)
 # ==========================================
 with tab1:
     st.subheader("Interactive Bidder Simulator")
@@ -186,12 +186,12 @@ with tab2:
                         m2.metric("Flagged Shills", f"{flagged_shills:,}")
                         m3.metric("Clean Bids Rate", f"{clean_rate:.2f}%")
                         
-                        with st.expander("View Detailed Audit Log"):
-                            def highlight_fraud(row):
-                                if row['Fraud_Prediction'] == 1:
-                                    return ['background-color: rgba(255, 75, 75, 0.2)'] * len(row)
-                                return [''] * len(row)
-                            st.dataframe(results_df.style.apply(highlight_fraud, axis=1), use_container_width=True)
+                        st.markdown("**Detailed Audit Log**")
+                        def highlight_fraud(row):
+                            if row['Fraud_Prediction'] == 1:
+                                return ['background-color: rgba(255, 75, 75, 0.2)'] * len(row)
+                            return [''] * len(row)
+                        st.dataframe(results_df.style.apply(highlight_fraud, axis=1), use_container_width=True)
 
                         st.markdown("**Interactive Risk Topography**")
                         fig = px.scatter(
