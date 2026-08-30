@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.model_selection import StratifiedGroupKFold
 
 # --- 1. REQUIRED CLASS DEFINITION ---
 class BoxplotWinsorizer(BaseEstimator, TransformerMixin):
@@ -236,7 +237,7 @@ with tab2:
                             pie_batch = results_df['Risk_Status'].value_counts().reset_index()
                             pie_batch.columns = ['Risk_Status', 'Count']
                             fig_batch_pie = px.pie(
-                                pie_batch, values='Count', names='Risk_Status',
+                                pie_batch, values='Count', names='Risk_Status', hole=0.5,
                                 color='Risk_Status', color_discrete_map=theme_colors,
                                 title="Proportion of Flagged vs Clean Bids in Batch"
                             )
@@ -263,13 +264,23 @@ with tab3:
     try:
         df_eval = pd.read_csv("Shill Bidding Dataset.csv")
         feature_cols = ["Bidder_Tendency", "Bidding_Ratio", "Successive_Outbidding", "Last_Bidding", "Auction_Bids", "Starting_Price_Average", "Early_Bidding", "Winning_Ratio", "Auction_Duration"]
-        X_eval = df_eval[feature_cols]
-        y_eval = df_eval["Class"] 
+        
+        # Pull the full feature set and target
+        X_full = df_eval[feature_cols]
+        y_full = df_eval["Class"] 
+        groups = df_eval["Bidder_ID"]
+        
+        # Replicate the notebook's exact test split using StratifiedGroupKFold
+        sgkf = StratifiedGroupKFold(n_splits=5, random_state=42, shuffle=True)
+        train_idx, test_idx = next(sgkf.split(X_full, y_full, groups=groups))
+        
+        X_eval = X_full.iloc[test_idx]
+        y_eval = y_full.iloc[test_idx]
         
         metrics_list = []
         raw_metrics_for_plot = []
         
-        with st.spinner("Calculating live performance metrics..."):
+        with st.spinner("Calculating live performance metrics on test split..."):
             for model_name, path in MODEL_PATHS.items():
                 try:
                     eval_model = joblib.load(path)
@@ -288,7 +299,7 @@ with tab3:
                         "Precision (Fraud)": f"{prec:.2f}%",
                         "Recall (Fraud)": f"{rec:.2f}%",
                         "F1-Score": f"{f1:.2f}%",
-                        "ROC-AUC": f"{roc:.3f}"
+                        "ROC-AUC": f"{roc:.4f}"
                     })
                     
                     raw_metrics_for_plot.append({
@@ -306,16 +317,16 @@ with tab3:
             st.markdown("**Model Accuracy Comparison**")
             m1, m2, m3 = st.columns(3)
             
-            baseline_val = metrics_df.loc[metrics_df['Algorithm'] == 'Logistic Regression (Baseline)', 'Accuracy'].values[0] if len(metrics_df.loc[metrics_df['Algorithm'] == 'Logistic Regression (Baseline)']) > 0 else 98.04
-            rf_val = metrics_df.loc[metrics_df['Algorithm'] == 'Random Forest Classifier', 'Accuracy'].values[0] if len(metrics_df.loc[metrics_df['Algorithm'] == 'Random Forest Classifier']) > 0 else 99.84
-            hgb_val = metrics_df.loc[metrics_df['Algorithm'] == 'Hist Gradient Boosting', 'Accuracy'].values[0] if len(metrics_df.loc[metrics_df['Algorithm'] == 'Hist Gradient Boosting']) > 0 else 99.92
+            baseline_val = metrics_df.loc[metrics_df['Algorithm'] == 'Logistic Regression (Baseline)', 'Accuracy'].values[0] if len(metrics_df.loc[metrics_df['Algorithm'] == 'Logistic Regression (Baseline)']) > 0 else 97.74
+            rf_val = metrics_df.loc[metrics_df['Algorithm'] == 'Random Forest Classifier', 'Accuracy'].values[0] if len(metrics_df.loc[metrics_df['Algorithm'] == 'Random Forest Classifier']) > 0 else 99.19
+            hgb_val = metrics_df.loc[metrics_df['Algorithm'] == 'Hist Gradient Boosting', 'Accuracy'].values[0] if len(metrics_df.loc[metrics_df['Algorithm'] == 'Hist Gradient Boosting']) > 0 else 99.60
             
             m1.metric(label="Baseline (LogReg)", value=f"{baseline_val:.2f}%")
             m2.metric(label="Random Forest", value=f"{rf_val:.2f}%", delta=f"{rf_val - baseline_val:.2f}% improvement")
             m3.metric(label="Hist Gradient", value=f"{hgb_val:.2f}%", delta=f"{hgb_val - baseline_val:.2f}% improvement")
             
             metrics_df['Accuracy'] = metrics_df['Accuracy'].apply(lambda x: f"{x:.2f}%")
-            st.markdown("**Live Comparative Metric Scoreboard**")
+            st.markdown("**Live Comparative Metric Scoreboard (Test Split)**")
             st.dataframe(metrics_df, use_container_width=True, hide_index=True)
 
             st.divider()
@@ -363,11 +374,10 @@ with tab4:
                 pie_data = df_eda['Class_Label'].value_counts().reset_index()
                 pie_data.columns = ['Class_Label', 'Count']
                 fig_pie = px.pie(
-                    pie_data, values='Count', names='Class_Label',
-                    color='Class_Label', color_discrete_map=color_map,
-                    title="Class Distribution (Shill vs Non-Shill)"
+                    pie_data, values='Count', names='Class_Label', hole=0.4,
+                    color='Class_Label', color_discrete_map=color_map
                 )
-                fig_pie.update_layout(margin=dict(t=30, b=0, l=0, r=0))
+                fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
             with col2:
