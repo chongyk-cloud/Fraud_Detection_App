@@ -114,12 +114,42 @@ with tab1:
                 probability = active_model.predict_proba(input_data)[0][1]
             
                 st.divider()
-                if prediction == 1:
-                    st.error("**FRAUDULENT BIDDER DETECTED (SHILL)**")
-                    st.warning(f"**Risk Confidence Score:** {probability * 100:.2f}% probability of shill activity.")
-                else:
-                    st.success("**LEGITIMATE BIDDER (NORMAL)**")
-                    st.info(f"**Risk Confidence Score:** {probability * 100:.2f}% probability of shill activity.")
+                
+                # Split results into text and gauge chart
+                res_col1, res_col2 = st.columns([1, 1])
+                
+                with res_col1:
+                    st.markdown("<br><br>", unsafe_allow_html=True)
+                    if prediction == 1:
+                        st.error("**FRAUDULENT BIDDER DETECTED (SHILL)**")
+                        st.warning(f"**Risk Confidence Score:** {probability * 100:.2f}% probability of shill activity.")
+                    else:
+                        st.success("**LEGITIMATE BIDDER (NORMAL)**")
+                        st.info(f"**Risk Confidence Score:** {probability * 100:.2f}% probability of shill activity.")
+                        
+                with res_col2:
+                    # New Risk Gauge Chart
+                    fig_gauge = go.Figure(go.Indicator(
+                        mode = "gauge+number",
+                        value = probability * 100,
+                        title = {'text': "Fraud Risk Probability (%)"},
+                        gauge = {
+                            'axis': {'range': [0, 100]},
+                            'bar': {'color': "#ff4b4b" if prediction == 1 else "#21c354"},
+                            'steps': [
+                                {'range': [0, 50], 'color': "rgba(33, 195, 84, 0.2)"},
+                                {'range': [50, 100], 'color': "rgba(255, 75, 75, 0.2)"}
+                            ],
+                            'threshold': {
+                                'line': {'color': "black", 'width': 3},
+                                'thickness': 0.75,
+                                'value': 50
+                            }
+                        }
+                    ))
+                    fig_gauge.update_layout(height=250, margin=dict(t=40, b=0, l=0, r=0))
+                    st.plotly_chart(fig_gauge, use_container_width=True)
+                    
             except Exception as e:
                 st.error(f"Error loading model or predicting: {e}")
 
@@ -181,40 +211,45 @@ with tab2:
                         
                         st.divider()
                         st.markdown("**Audit Summary**")
-                        m1, m2, m3 = st.columns(3)
-                        m1.metric("Total Bids Scanned", f"{total_bids:,}")
-                        m2.metric("Flagged Shills", f"{flagged_shills:,}")
-                        m3.metric("Clean Bids Rate", f"{clean_rate:.2f}%")
                         
+                        m_col1, m_col2 = st.columns([1, 1.5])
+                        
+                        with m_col1:
+                            m1, m2 = st.columns(2)
+                            m1.metric("Total Bids Scanned", f"{total_bids:,}")
+                            m1.metric("Flagged Shills", f"{flagged_shills:,}")
+                            m2.metric("Clean Bids Rate", f"{clean_rate:.2f}%")
+                            
+                            flagged_df = results_df[results_df["Fraud_Prediction"] == 1]
+                            if not flagged_df.empty:
+                                csv_export = flagged_df.to_csv(index=False).encode('utf-8')
+                                st.download_button(
+                                    label="Download Flagged Accounts (CSV)",
+                                    data=csv_export,
+                                    file_name="flagged_shill_bidders.csv",
+                                    mime="text/csv",
+                                    type="primary"
+                                )
+                                
+                        with m_col2:
+                            # New Batch Distribution Donut Chart
+                            pie_batch = results_df['Risk_Status'].value_counts().reset_index()
+                            pie_batch.columns = ['Risk_Status', 'Count']
+                            fig_batch_pie = px.pie(
+                                pie_batch, values='Count', names='Risk_Status', hole=0.5,
+                                color='Risk_Status', color_discrete_map={"Shill": "#ff4b4b", "Clean": "#21c354"},
+                                title="Proportion of Flagged vs Clean Bids in Batch"
+                            )
+                            fig_batch_pie.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0))
+                            st.plotly_chart(fig_batch_pie, use_container_width=True)
+
                         st.markdown("**Detailed Audit Log**")
                         def highlight_fraud(row):
                             if row['Fraud_Prediction'] == 1:
                                 return ['background-color: rgba(255, 75, 75, 0.2)'] * len(row)
                             return [''] * len(row)
                         st.dataframe(results_df.style.apply(highlight_fraud, axis=1), use_container_width=True)
-
-                        st.markdown("**Interactive Risk Topography**")
-                        fig = px.scatter(
-                            results_df,
-                            x="Bidding_Ratio", y="Successive_Outbidding",
-                            color="Risk_Status",
-                            color_discrete_map={"Shill": "#ff4b4b", "Clean": "#21c354"},
-                            title="Bidder Behavior Clustering",
-                            hover_data=["Bidder_Tendency", "Auction_Bids", "Fraud_Prediction"]
-                        )
-                        fig.update_layout(xaxis_title="Bidding Ratio", yaxis_title="Successive Outbidding")
-                        st.plotly_chart(fig, use_container_width=True)
                         
-                        flagged_df = results_df[results_df["Fraud_Prediction"] == 1]
-                        if not flagged_df.empty:
-                            csv_export = flagged_df.to_csv(index=False).encode('utf-8')
-                            st.download_button(
-                                label="Download Flagged Accounts Report (CSV)",
-                                data=csv_export,
-                                file_name="flagged_shill_bidders.csv",
-                                mime="text/csv",
-                                type="primary"
-                            )
                     except Exception as e:
                         st.error(f"Error executing batch scan: {e}")
 
@@ -230,7 +265,9 @@ with tab3:
         feature_cols = ["Bidder_Tendency", "Bidding_Ratio", "Successive_Outbidding", "Last_Bidding", "Auction_Bids", "Starting_Price_Average", "Early_Bidding", "Winning_Ratio", "Auction_Duration"]
         X_eval = df_eval[feature_cols]
         y_eval = df_eval["Class"] 
+        
         metrics_list = []
+        raw_metrics_for_plot = []
         
         with st.spinner("Calculating live performance metrics..."):
             for model_name, path in MODEL_PATHS.items():
@@ -239,19 +276,35 @@ with tab3:
                     y_pred = eval_model.predict(X_eval)
                     y_prob = eval_model.predict_proba(X_eval)[:, 1]
                     
+                    acc = accuracy_score(y_eval, y_pred) * 100
+                    prec = precision_score(y_eval, y_pred) * 100
+                    rec = recall_score(y_eval, y_pred) * 100
+                    f1 = f1_score(y_eval, y_pred) * 100
+                    roc = roc_auc_score(y_eval, y_prob)
+                    
+                    # Formatted for the table
                     metrics_list.append({
                         "Algorithm": model_name,
-                        "Accuracy": accuracy_score(y_eval, y_pred) * 100,
-                        "Precision (Fraud)": f"{precision_score(y_eval, y_pred) * 100:.2f}%",
-                        "Recall (Fraud)": f"{recall_score(y_eval, y_pred) * 100:.2f}%",
-                        "F1-Score": f"{f1_score(y_eval, y_pred) * 100:.2f}%",
-                        "ROC-AUC": f"{roc_auc_score(y_eval, y_prob):.3f}"
+                        "Accuracy": acc,
+                        "Precision (Fraud)": f"{prec:.2f}%",
+                        "Recall (Fraud)": f"{rec:.2f}%",
+                        "F1-Score": f"{f1:.2f}%",
+                        "ROC-AUC": f"{roc:.3f}"
+                    })
+                    
+                    # Raw floats for the bar chart
+                    raw_metrics_for_plot.append({
+                        "Algorithm": model_name.replace(" Classifier", "").replace(" (Baseline)", ""),
+                        "Accuracy": acc,
+                        "Precision": prec,
+                        "Recall": rec
                     })
                 except Exception as e:
                     pass
 
         if metrics_list:
             metrics_df = pd.DataFrame(metrics_list)
+            
             st.markdown("**Model Accuracy Comparison**")
             m1, m2, m3 = st.columns(3)
             
@@ -266,6 +319,20 @@ with tab3:
             metrics_df['Accuracy'] = metrics_df['Accuracy'].apply(lambda x: f"{x:.2f}%")
             st.markdown("**Live Comparative Metric Scoreboard**")
             st.dataframe(metrics_df, use_container_width=True, hide_index=True)
+
+            st.divider()
+            
+            # New Grouped Bar Chart
+            st.markdown("**Visualizing Model Trade-offs (Precision vs. Recall vs. Accuracy)**")
+            plot_df = pd.DataFrame(raw_metrics_for_plot)
+            plot_df_melted = plot_df.melt(id_vars="Algorithm", value_vars=["Accuracy", "Precision", "Recall"], var_name="Metric", value_name="Score (%)")
+            
+            fig_models = px.bar(
+                plot_df_melted, x="Algorithm", y="Score (%)", color="Metric", barmode="group",
+                color_discrete_map={"Accuracy": "#1f77b4", "Precision": "#ff7f0e", "Recall": "#2ca02c"}
+            )
+            fig_models.update_layout(height=350, margin=dict(t=20, b=0, l=0, r=0), yaxis_range=[80, 105])
+            st.plotly_chart(fig_models, use_container_width=True)
 
         st.divider()
         col1, col2 = st.columns(2)
