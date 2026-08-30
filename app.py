@@ -473,7 +473,7 @@ with tab4:
                     auc_data, x='ROC_AUC', y='Feature', orientation='h', 
                     color='ROC_AUC', color_continuous_scale='RdPu'
                 )
-                fig_auc.add_vline(x=0.5, line_dash="dash", line_color="white", annotation_text="Baseline (0.5 = No Effect)")
+                fig_auc.add_vline(x=0.5, line_dash="dash", line_color="#0ea5e9", annotation_text="Baseline (0.5 = No Effect)")
                 fig_auc.update_layout(height=350, margin=dict(t=10, b=0, l=0, r=0), coloraxis_showscale=False)
                 st.plotly_chart(fig_auc, use_container_width=True)
 
