@@ -237,7 +237,7 @@ with tab2:
                             pie_batch = results_df['Risk_Status'].value_counts().reset_index()
                             pie_batch.columns = ['Risk_Status', 'Count']
                             fig_batch_pie = px.pie(
-                                pie_batch, values='Count', names='Risk_Status', hole=0.5,
+                                pie_batch, values='Count', names='Risk_Status',
                                 color='Risk_Status', color_discrete_map=theme_colors,
                                 title="Proportion of Flagged vs Clean Bids in Batch"
                             )
@@ -374,7 +374,7 @@ with tab4:
                 pie_data = df_eda['Class_Label'].value_counts().reset_index()
                 pie_data.columns = ['Class_Label', 'Count']
                 fig_pie = px.pie(
-                    pie_data, values='Count', names='Class_Label', hole=0.4,
+                    pie_data, values='Count', names='Class_Label',
                     color='Class_Label', color_discrete_map=color_map
                 )
                 fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
