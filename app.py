@@ -300,32 +300,85 @@ with tab4:
     st.subheader("Exploratory Data Analysis")
     st.markdown("Investigate the underlying behavioral patterns that distinguish legitimate buyers from shill bidders.")
     
-    # Top Row: Two side-by-side analyses
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**Analysis 1: [Title]**")
-        st.info("Placeholder: Interactive Plotly Chart 1 will render here.")
+    try:
+        # Load data for analysis
+        df_eda = pd.read_csv("Shill Bidding Dataset.csv")
+        df_eda['Class_Label'] = df_eda['Class'].map({0: 'Non-Shill', 1: 'Shill'})
         
-    with col2:
-        st.markdown("**Analysis 2: [Title]**")
-        st.info("Placeholder: Interactive Plotly Chart 2 will render here.")
+        # --- ROW 1: Class Imbalance & Successive Outbidding ---
+        col1, col2 = st.columns(2)
         
-    st.divider()
-    
-    # Middle Row: Full-width or complex analysis
-    st.markdown("**Analysis 3: [Title]**")
-    st.info("Placeholder: Interactive Plotly Chart 3 will render here.")
-    
-    st.divider()
-    
-    # Bottom Row: Two side-by-side analyses
-    col3, col4 = st.columns(2)
-    
-    with col3:
-        st.markdown("**Analysis 4: [Title]**")
-        st.info("Placeholder: Interactive Plotly Chart 4 will render here.")
+        with col1:
+            pie_data = df_eda['Class_Label'].value_counts().reset_index()
+            pie_data.columns = ['Class_Label', 'Count']
+            fig_pie = px.pie(
+                pie_data, values='Count', names='Class_Label', 
+                title="Class Distribution (Shill vs Non-Shill)",
+                color='Class_Label', color_discrete_map={'Non-Shill': '#1f77b4', 'Shill': '#ff7f0e'}
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+        with col2:
+            ct = pd.crosstab(df_eda['Successive_Outbidding'], df_eda['Class_Label'], normalize='index') * 100
+            ct = ct.reset_index().melt(id_vars='Successive_Outbidding', var_name='Class_Label', value_name='Percentage')
+            fig_bar = px.bar(
+                ct, x='Successive_Outbidding', y='Percentage', color='Class_Label', 
+                title="Proportion of Class by Successive Outbidding", barmode='stack',
+                color_discrete_map={'Non-Shill': '#1f77b4', 'Shill': '#ff7f0e'}
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+            
+        st.divider()
         
-    with col4:
-        st.markdown("**Analysis 5: [Title]**")
-        st.info("Placeholder: Interactive Plotly Chart 5 will render here.")
+        # --- ROW 2: Bidding/Winning Interaction & Dynamic Risk Trend ---
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            fig_scatter = px.scatter(
+                df_eda, x='Bidding_Ratio', y='Winning_Ratio', color='Class_Label', 
+                title="Bidding Ratio vs. Winning Ratio", opacity=0.6,
+                color_discrete_map={'Non-Shill': '#1f77b4', 'Shill': '#ff7f0e'}
+            )
+            st.plotly_chart(fig_scatter, use_container_width=True)
+            
+        with col4:
+            trend_df = df_eda.sort_values('Bidding_Ratio').copy()
+            trend_df['Rolling_Risk'] = trend_df['Class'].rolling(window=150, min_periods=50).mean() * 100
+            fig_line = px.line(
+                trend_df, x='Bidding_Ratio', y='Rolling_Risk', 
+                title="Dynamic Risk Trend: Shill Probability vs. Bidding Ratio"
+            )
+            fig_line.add_hline(y=50, line_dash="dash", line_color="red", annotation_text="High Risk (>50%)")
+            fig_line.update_layout(yaxis_title="Probability of Shill Behavior (%)")
+            st.plotly_chart(fig_line, use_container_width=True)
+
+        st.divider()
+
+        # --- ROW 3: Behavioral Profiling & Feature Effect ---
+        col5, col6 = st.columns(2)
+        
+        with col5:
+            metrics = ['Bidder_Tendency', 'Bidding_Ratio', 'Last_Bidding', 'Auction_Bids', 'Starting_Price_Average']
+            shill_means = df_eda[df_eda['Class']==1][metrics].mean().tolist()
+            normal_means = df_eda[df_eda['Class']==0][metrics].mean().tolist()
+            
+            fig_radar = go.Figure()
+            fig_radar.add_trace(go.Scatterpolar(r=normal_means, theta=metrics, fill='toself', name='Non-Shill', marker=dict(color='#1f77b4')))
+            fig_radar.add_trace(go.Scatterpolar(r=shill_means, theta=metrics, fill='toself', name='Shill', marker=dict(color='#ff7f0e')))
+            fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), title="Behavioral Profile of Bidders")
+            st.plotly_chart(fig_radar, use_container_width=True)
+            
+        with col6:
+            auc_data = pd.DataFrame({
+                'Feature': ['Starting_Price_Average', 'Auction_Bids', 'Early_Bidding', 'Last_Bidding', 'Bidder_Tendency', 'Winning_Ratio', 'Bidding_Ratio'],
+                'ROC_AUC': [0.535, 0.546, 0.551, 0.595, 0.783, 0.823, 0.919]
+            })
+            fig_auc = px.bar(
+                auc_data, x='ROC_AUC', y='Feature', orientation='h', 
+                title="Effect of Continuous Features (ROC-AUC)"
+            )
+            fig_auc.add_vline(x=0.5, line_dash="dash", line_color="red", annotation_text="Baseline")
+            st.plotly_chart(fig_auc, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Could not load dataset for analysis. Error: {e}")
