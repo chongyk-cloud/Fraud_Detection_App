@@ -86,7 +86,7 @@ with tab1:
         with col1:
             bidder_tendency = st.slider("Bidder Tendency", 0.0, 1.0, 0.5, help="A shill bidder participates exclusively in the auctions of a few sellers rather than a diversified lot.")
             bidding_ratio = st.slider("Bidding Ratio", 0.0, 1.0, 0.2, help="A shill bidder bids more frequently to increase the price of the auction and attract higher bids from legitimate participants.")
-            successive_outbidding = st.slider("Successive Outbidding", 0.0, 1.0, 0.0, help="0: None, 0.5: Partial, 1.0: Full. Shill bidders outbid themselves to increase the price.")
+            successive_outbidding = st.slider("Successive Outbidding", 0.0, 1.0, 0.0, step=0.5, help="0: None, 0.5: Partial, 1.0: Full. Shill bidders outbid themselves to increase the price.")
             
         with col2:
             last_bidding = st.slider("Last Bidding", 0.0, 1.0, 0.0, help="A shill bidder avoids bidding at the last stage of the auction (more than 0.9) to purposely lose.")
@@ -236,7 +236,7 @@ with tab2:
                             pie_batch = results_df['Risk_Status'].value_counts().reset_index()
                             pie_batch.columns = ['Risk_Status', 'Count']
                             fig_batch_pie = px.pie(
-                                pie_batch, values='Count', names='Risk_Status',
+                                pie_batch, values='Count', names='Risk_Status', hole=0.5,
                                 color='Risk_Status', color_discrete_map=theme_colors,
                                 title="Proportion of Flagged vs Clean Bids in Batch"
                             )
@@ -328,7 +328,15 @@ with tab3:
                 plot_df_melted, x="Algorithm", y="Score (%)", color="Metric", barmode="group",
                 color_discrete_map={"Accuracy": "#0ea5e9", "Precision": "#f59e0b", "Recall": "#f43f5e"}
             )
-            fig_models.update_layout(height=350, margin=dict(t=20, b=0, l=0, r=0), yaxis_range=[80, 105])
+            
+            fig_models.update_layout(
+                height=350, 
+                margin=dict(t=20, b=0, l=0, r=0), 
+                yaxis_range=[80, 105],
+                bargap=0.3,
+                bargroupgap=0.1
+            )
+            
             st.plotly_chart(fig_models, use_container_width=True)
 
     except Exception as e:
@@ -344,6 +352,7 @@ with tab4:
     try:
         df_eda = pd.read_csv("Shill Bidding Dataset.csv")
         df_eda['Class_Label'] = df_eda['Class'].map({0: 'Non-Shill', 1: 'Shill'})
+        color_map = {'Non-Shill': '#0ea5e9', 'Shill': '#f43f5e'}
         
         # --- SECTION 1: The Fraud Landscape ---
         with st.container(border=True):
@@ -354,11 +363,10 @@ with tab4:
                 pie_data = df_eda['Class_Label'].value_counts().reset_index()
                 pie_data.columns = ['Class_Label', 'Count']
                 fig_pie = px.pie(
-                    pie_data, values='Count', names='Class_Label',
-                    color='Class_Label', color_discrete_map=theme_colors,
-                    title="Class Distribution (Shill vs Non-Shill)"
+                    pie_data, values='Count', names='Class_Label', hole=0.4,
+                    color='Class_Label', color_discrete_map=color_map
                 )
-                fig_pie.update_layout(margin=dict(t=30, b=0, l=0, r=0))
+                fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
             with col2:
@@ -368,7 +376,7 @@ with tab4:
                 ct = ct.reset_index().melt(id_vars='Successive_Outbidding', var_name='Class_Label', value_name='Percentage')
                 fig_bar = px.bar(
                     ct, x='Percentage', y='Successive_Outbidding', color='Class_Label', 
-                    orientation='h', barmode='stack', color_discrete_map=theme_colors,
+                    orientation='h', barmode='stack', color_discrete_map=color_map,
                     title="Class Proportion by Successive Outbidding Level"
                 )
                 fig_bar.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0), yaxis_title="Outbidding Intensity")
@@ -406,7 +414,7 @@ with tab4:
             with col5:
                 fig_scatter = px.scatter(
                     df_eda, x='Bidding_Ratio', y='Winning_Ratio', color='Class_Label', 
-                    opacity=0.6, color_discrete_map=theme_colors
+                    opacity=0.6, color_discrete_map=color_map
                 )
                 fig_scatter.update_layout(margin=dict(t=10, b=0, l=0, r=0))
                 st.plotly_chart(fig_scatter, use_container_width=True)
@@ -427,30 +435,27 @@ with tab4:
             st.markdown("### 4. Predictive Power & Feature Distribution")
             st.markdown("To prevent overfitting, we calculate the Area Under the Receiver Operating Characteristic Curve (ROC-AUC) for individual features. This proves mathematically which behaviors separate the classes best.")
             
-            selected_box_feature = st.selectbox(
-                "Select Feature to View Distribution:", 
-                ['Bidder_Tendency', 'Bidding_Ratio', 'Winning_Ratio', 'Last_Bidding', 'Auction_Bids', 'Starting_Price_Average', 'Early_Bidding']
-            )
-            
             col7, col8 = st.columns(2)
             
             with col7:
-                st.markdown("**Outlier Detection (Interactive Box Plot)**")
+                selected_box_feature = st.selectbox(
+                    "Select Feature to View Distribution:", 
+                    ['Bidder_Tendency', 'Bidding_Ratio', 'Winning_Ratio', 'Last_Bidding', 'Auction_Bids', 'Starting_Price_Average', 'Early_Bidding']
+                )
                 fig_box = px.box(
                     df_eda, x='Class_Label', y=selected_box_feature, color='Class_Label', 
-                    color_discrete_map=theme_colors
+                    color_discrete_map=color_map
                 )
                 fig_box.update_layout(margin=dict(t=30, b=0, l=0, r=0))
                 st.plotly_chart(fig_box, use_container_width=True)
                 
             with col8:
-                st.markdown("**Feature Effect (ROC-AUC)**")
+                st.markdown("<br><br>", unsafe_allow_html=True)
                 features_to_test = ['Starting_Price_Average', 'Auction_Bids', 'Early_Bidding', 'Last_Bidding', 'Bidder_Tendency', 'Winning_Ratio', 'Bidding_Ratio']
                 live_auc_scores = [roc_auc_score(df_eda['Class'], df_eda[col]) for col in features_to_test]
                 
                 auc_data = pd.DataFrame({'Feature': features_to_test, 'ROC_AUC': live_auc_scores}).sort_values('ROC_AUC')
                 
-                # Updated to use a continuous scale that compliments the new theme
                 fig_auc = px.bar(
                     auc_data, x='ROC_AUC', y='Feature', orientation='h', 
                     color='ROC_AUC', color_continuous_scale='RdPu'
