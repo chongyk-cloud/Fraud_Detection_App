@@ -282,7 +282,6 @@ with tab3:
                     f1 = f1_score(y_eval, y_pred) * 100
                     roc = roc_auc_score(y_eval, y_prob)
                     
-                    # Formatted for the table
                     metrics_list.append({
                         "Algorithm": model_name,
                         "Accuracy": acc,
@@ -292,7 +291,6 @@ with tab3:
                         "ROC-AUC": f"{roc:.3f}"
                     })
                     
-                    # Raw floats for the bar chart
                     raw_metrics_for_plot.append({
                         "Algorithm": model_name.replace(" Classifier", "").replace(" (Baseline)", ""),
                         "Accuracy": acc,
@@ -322,29 +320,20 @@ with tab3:
 
             st.divider()
             
-            # New Grouped Bar Chart
             st.markdown("**Visualizing Model Trade-offs (Precision vs. Recall vs. Accuracy)**")
             plot_df = pd.DataFrame(raw_metrics_for_plot)
             plot_df_melted = plot_df.melt(id_vars="Algorithm", value_vars=["Accuracy", "Precision", "Recall"], var_name="Metric", value_name="Score (%)")
             
             fig_models = px.bar(
                 plot_df_melted, x="Algorithm", y="Score (%)", color="Metric", barmode="group",
-                color_discrete_map={"Accuracy": "#1f77b4", "Precision": "#ff7f0e", "Recall": "#2ca02c"}
+                color_discrete_map={"Accuracy": "#0ea5e9", "Precision": "#f59e0b", "Recall": "#f43f5e"}
             )
             fig_models.update_layout(height=350, margin=dict(t=20, b=0, l=0, r=0), yaxis_range=[80, 105])
             st.plotly_chart(fig_models, use_container_width=True)
 
-        st.divider()
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Model Architecture Justification**")
-            st.info("Random Forest and Hist Gradient Boosting significantly outperform the baseline Logistic Regression model. Because the original dataset was highly imbalanced, combining these tree-based ensemble methods with SMOTE allowed the algorithms to successfully learn the complex, non-linear behavioral patterns of shill bidders.")
-        with col2:
-            st.markdown("**Real-World Business Impact**")
-            st.success("In financial security and fraud detection, Recall is the most critical metric. Missing a fraudulent bidder (False Negative) severely damages platform trust, which is far more dangerous than occasionally flagging a normal bidder for manual review (False Positive). The model with the highest recall score is the recommended choice.")
-
     except Exception as e:
         st.error(f"Could not calculate live metrics. Error: {e}")
+
 # ==========================================
 # MODULE 4: EXPLORATORY DATA ANALYSIS (TAB 4)
 # ==========================================
