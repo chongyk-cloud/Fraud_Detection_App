@@ -370,10 +370,19 @@ with tab4:
             st.plotly_chart(fig_radar, use_container_width=True)
             
         with col6:
+            # Calculate ROC-AUC scores live from the dataset
+            features_to_test = ['Starting_Price_Average', 'Auction_Bids', 'Early_Bidding', 'Last_Bidding', 'Bidder_Tendency', 'Winning_Ratio', 'Bidding_Ratio']
+            live_auc_scores = []
+            
+            for col in features_to_test:
+                score = roc_auc_score(df_eda['Class'], df_eda[col])
+                live_auc_scores.append(score)
+                
             auc_data = pd.DataFrame({
-                'Feature': ['Starting_Price_Average', 'Auction_Bids', 'Early_Bidding', 'Last_Bidding', 'Bidder_Tendency', 'Winning_Ratio', 'Bidding_Ratio'],
-                'ROC_AUC': [0.535, 0.546, 0.551, 0.595, 0.783, 0.823, 0.919]
-            })
+                'Feature': features_to_test,
+                'ROC_AUC': live_auc_scores
+            }).sort_values('ROC_AUC')
+            
             fig_auc = px.bar(
                 auc_data, x='ROC_AUC', y='Feature', orientation='h', 
                 title="Effect of Continuous Features (ROC-AUC)"
