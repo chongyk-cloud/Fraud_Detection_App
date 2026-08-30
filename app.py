@@ -49,7 +49,6 @@ st.set_page_config(page_title="Auction Shield | Fraud Detection", layout="wide")
 with st.sidebar:
     st.markdown("**Auction Shield Dashboard**")
     st.caption("Financial Security and Risk Analytics")
-    st.caption("Project by Justin Chan Lok Hang & Chong Yoong Keat")
     st.divider()
     st.markdown("**Executive Summary**")
     st.write("Shill bidding artificially inflates final auction prices. This system leverages Machine Learning to detect fraudulent behavior in real-time.")
