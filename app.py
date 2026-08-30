@@ -66,6 +66,9 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "Exploratory Data Analysis"
 ])
 
+# Global Color Theme for the new design
+theme_colors = {'Non-Shill': '#0ea5e9', 'Shill': '#f43f5e', 'Clean': '#0ea5e9'}
+
 # ==========================================
 # MODULE 1: SHILL PREDICTOR (TAB 1)
 # ==========================================
@@ -127,8 +130,26 @@ with tab1:
                         st.write("This behavioral profile is consistent with normal consumer activity.")
                         
                 with res_col2:
-                    st.metric(label="Risk Confidence Score", value=f"{probability * 100:.2f}%")
-                    st.progress(float(probability), text="Probability of Shill Activity")
+                    fig_gauge = go.Figure(go.Indicator(
+                        mode = "gauge+number",
+                        value = probability * 100,
+                        title = {'text': "Fraud Risk Probability (%)"},
+                        gauge = {
+                            'axis': {'range': [0, 100]},
+                            'bar': {'color': theme_colors['Shill'] if prediction == 1 else theme_colors['Non-Shill']},
+                            'steps': [
+                                {'range': [0, 50], 'color': "rgba(14, 165, 233, 0.1)"},
+                                {'range': [50, 100], 'color': "rgba(244, 63, 94, 0.1)"}
+                            ],
+                            'threshold': {
+                                'line': {'color': "white", 'width': 3},
+                                'thickness': 0.75,
+                                'value': 50
+                            }
+                        }
+                    ))
+                    fig_gauge.update_layout(height=250, margin=dict(t=40, b=0, l=0, r=0))
+                    st.plotly_chart(fig_gauge, use_container_width=True)
                     
             except Exception as e:
                 st.error(f"Error loading model or predicting: {e}")
@@ -215,8 +236,8 @@ with tab2:
                             pie_batch = results_df['Risk_Status'].value_counts().reset_index()
                             pie_batch.columns = ['Risk_Status', 'Count']
                             fig_batch_pie = px.pie(
-                                pie_batch, values='Count', names='Risk_Status', hole=0.5,
-                                color='Risk_Status', color_discrete_map={"Shill": "#ff4b4b", "Clean": "#21c354"},
+                                pie_batch, values='Count', names='Risk_Status',
+                                color='Risk_Status', color_discrete_map=theme_colors,
                                 title="Proportion of Flagged vs Clean Bids in Batch"
                             )
                             fig_batch_pie.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0))
@@ -225,7 +246,7 @@ with tab2:
                         st.markdown("**Detailed Audit Log**")
                         def highlight_fraud(row):
                             if row['Fraud_Prediction'] == 1:
-                                return ['background-color: rgba(255, 75, 75, 0.2)'] * len(row)
+                                return ['background-color: rgba(244, 63, 94, 0.2)'] * len(row)
                             return [''] * len(row)
                         st.dataframe(results_df.style.apply(highlight_fraud, axis=1), use_container_width=True)
                         
@@ -305,7 +326,7 @@ with tab3:
             
             fig_models = px.bar(
                 plot_df_melted, x="Algorithm", y="Score (%)", color="Metric", barmode="group",
-                color_discrete_map={"Accuracy": "#1f77b4", "Precision": "#ff7f0e", "Recall": "#2ca02c"}
+                color_discrete_map={"Accuracy": "#0ea5e9", "Precision": "#f59e0b", "Recall": "#f43f5e"}
             )
             fig_models.update_layout(height=350, margin=dict(t=20, b=0, l=0, r=0), yaxis_range=[80, 105])
             st.plotly_chart(fig_models, use_container_width=True)
@@ -323,7 +344,6 @@ with tab4:
     try:
         df_eda = pd.read_csv("Shill Bidding Dataset.csv")
         df_eda['Class_Label'] = df_eda['Class'].map({0: 'Non-Shill', 1: 'Shill'})
-        color_map = {'Non-Shill': '#1f77b4', 'Shill': '#ff4b4b'}
         
         # --- SECTION 1: The Fraud Landscape ---
         with st.container(border=True):
@@ -334,10 +354,11 @@ with tab4:
                 pie_data = df_eda['Class_Label'].value_counts().reset_index()
                 pie_data.columns = ['Class_Label', 'Count']
                 fig_pie = px.pie(
-                    pie_data, values='Count', names='Class_Label', hole=0.4,
-                    color='Class_Label', color_discrete_map=color_map
+                    pie_data, values='Count', names='Class_Label',
+                    color='Class_Label', color_discrete_map=theme_colors,
+                    title="Class Distribution (Shill vs Non-Shill)"
                 )
-                fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+                fig_pie.update_layout(margin=dict(t=30, b=0, l=0, r=0))
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
             with col2:
@@ -347,7 +368,7 @@ with tab4:
                 ct = ct.reset_index().melt(id_vars='Successive_Outbidding', var_name='Class_Label', value_name='Percentage')
                 fig_bar = px.bar(
                     ct, x='Percentage', y='Successive_Outbidding', color='Class_Label', 
-                    orientation='h', barmode='stack', color_discrete_map=color_map,
+                    orientation='h', barmode='stack', color_discrete_map=theme_colors,
                     title="Class Proportion by Successive Outbidding Level"
                 )
                 fig_bar.update_layout(height=250, margin=dict(t=30, b=0, l=0, r=0), yaxis_title="Outbidding Intensity")
@@ -365,15 +386,15 @@ with tab4:
                 normal_means = df_eda[df_eda['Class']==0][metrics].mean().tolist()
                 
                 fig_radar = go.Figure()
-                fig_radar.add_trace(go.Scatterpolar(r=normal_means, theta=metrics, fill='toself', name='Non-Shill', marker=dict(color='#1f77b4')))
-                fig_radar.add_trace(go.Scatterpolar(r=shill_means, theta=metrics, fill='toself', name='Shill', marker=dict(color='#ff4b4b')))
+                fig_radar.add_trace(go.Scatterpolar(r=normal_means, theta=metrics, fill='toself', name='Non-Shill', marker=dict(color=theme_colors['Non-Shill'])))
+                fig_radar.add_trace(go.Scatterpolar(r=shill_means, theta=metrics, fill='toself', name='Shill', marker=dict(color=theme_colors['Shill'])))
                 fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), margin=dict(t=20, b=20, l=20, r=20))
                 st.plotly_chart(fig_radar, use_container_width=True)
             
             with col4:
                 st.markdown("<br><br>", unsafe_allow_html=True)
                 st.markdown("**The Anatomy of a Scammer:**")
-                st.write("This radar chart acts as a behavioral fingerprint. Notice how the Shill profile (red) completely engulfs the Non-Shill profile across active metrics.")
+                st.write("This radar chart acts as a behavioral fingerprint. Notice how the Shill profile completely engulfs the Non-Shill profile across active metrics.")
                 st.write("- **Hyper-Focus:** Shills have an average Bidder Tendency roughly 3x higher than normal shoppers, proving they exclusively target specific sellers.")
                 st.write("- **Aggressive Volume:** Their Bidding Ratio is exponentially higher. Normal consumers lose the vast majority of auctions, whereas shills boast a median winning ratio near 0.885, dominating the specific items they manipulate.")
 
@@ -385,7 +406,7 @@ with tab4:
             with col5:
                 fig_scatter = px.scatter(
                     df_eda, x='Bidding_Ratio', y='Winning_Ratio', color='Class_Label', 
-                    opacity=0.6, color_discrete_map=color_map
+                    opacity=0.6, color_discrete_map=theme_colors
                 )
                 fig_scatter.update_layout(margin=dict(t=10, b=0, l=0, r=0))
                 st.plotly_chart(fig_scatter, use_container_width=True)
@@ -395,8 +416,8 @@ with tab4:
                 trend_df = df_eda.sort_values('Bidding_Ratio').copy()
                 trend_df['Rolling_Risk'] = trend_df['Class'].rolling(window=150, min_periods=50).mean() * 100
                 fig_line = px.line(trend_df, x='Bidding_Ratio', y='Rolling_Risk')
-                fig_line.update_traces(line_color="#ff4b4b", line_width=3)
-                fig_line.add_hline(y=50, line_dash="dash", line_color="black", annotation_text="50% Risk Threshold")
+                fig_line.update_traces(line_color=theme_colors['Shill'], line_width=3)
+                fig_line.add_hline(y=50, line_dash="dash", line_color="white", annotation_text="50% Risk Threshold")
                 fig_line.update_layout(yaxis_title="Shill Probability (%)", margin=dict(t=10, b=0, l=0, r=0))
                 st.plotly_chart(fig_line, use_container_width=True)
                 st.caption("Bidding frequency is a dynamic risk factor. This curve provides platform admins with an exact mathematical threshold to trigger automated account suspensions.")
@@ -404,17 +425,20 @@ with tab4:
         # --- SECTION 4: Predictive Power & Outlier Detection ---
         with st.container(border=True):
             st.markdown("### 4. Predictive Power & Feature Distribution")
+            st.markdown("To prevent overfitting, we calculate the Area Under the Receiver Operating Characteristic Curve (ROC-AUC) for individual features. This proves mathematically which behaviors separate the classes best.")
+            
+            selected_box_feature = st.selectbox(
+                "Select Feature to View Distribution:", 
+                ['Bidder_Tendency', 'Bidding_Ratio', 'Winning_Ratio', 'Last_Bidding', 'Auction_Bids', 'Starting_Price_Average', 'Early_Bidding']
+            )
+            
             col7, col8 = st.columns(2)
             
             with col7:
                 st.markdown("**Outlier Detection (Interactive Box Plot)**")
-                selected_box_feature = st.selectbox(
-                    "Select Feature to View Distribution:", 
-                    ['Bidder_Tendency', 'Bidding_Ratio', 'Winning_Ratio', 'Last_Bidding', 'Auction_Bids', 'Starting_Price_Average', 'Early_Bidding']
-                )
                 fig_box = px.box(
                     df_eda, x='Class_Label', y=selected_box_feature, color='Class_Label', 
-                    color_discrete_map=color_map
+                    color_discrete_map=theme_colors
                 )
                 fig_box.update_layout(margin=dict(t=30, b=0, l=0, r=0))
                 st.plotly_chart(fig_box, use_container_width=True)
@@ -425,11 +449,13 @@ with tab4:
                 live_auc_scores = [roc_auc_score(df_eda['Class'], df_eda[col]) for col in features_to_test]
                 
                 auc_data = pd.DataFrame({'Feature': features_to_test, 'ROC_AUC': live_auc_scores}).sort_values('ROC_AUC')
+                
+                # Updated to use a continuous scale that compliments the new theme
                 fig_auc = px.bar(
                     auc_data, x='ROC_AUC', y='Feature', orientation='h', 
-                    color='ROC_AUC', color_continuous_scale='Reds'
+                    color='ROC_AUC', color_continuous_scale='RdPu'
                 )
-                fig_auc.add_vline(x=0.5, line_dash="dash", line_color="black", annotation_text="Baseline (0.5 = No Effect)")
+                fig_auc.add_vline(x=0.5, line_dash="dash", line_color="white", annotation_text="Baseline (0.5 = No Effect)")
                 fig_auc.update_layout(height=350, margin=dict(t=10, b=0, l=0, r=0), coloraxis_showscale=False)
                 st.plotly_chart(fig_auc, use_container_width=True)
 
